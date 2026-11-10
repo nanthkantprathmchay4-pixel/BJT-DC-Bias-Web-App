@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BJT DC Bias Calculator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="page">
+  <header class="page-header">
+    <h1>BJT DC Bias Calculator</h1>
+    <p class="subtitle">Common-Emitter · Voltage Divider Bias</p>
+  </header>
+
+  <form class="card" method="post" action="/">
+    <div class="field-grid">
+      <div class="field">
+        <label for="vcc">VCC (V)</label>
+        <input id="vcc" name="vcc" type="text" inputmode="decimal" value="{{ form.vcc }}">
+        {% if errors.vcc %}<p class="error">{{ errors.vcc }}</p>{% endif %}
+      </div>
+      <div class="field">
+        <label for="beta">β</label>
+        <input id="beta" name="beta" type="text" inputmode="decimal" value="{{ form.beta }}">
+        {% if errors.beta %}<p class="error">{{ errors.beta }}</p>{% endif %}
+      </div>
+      <div class="field">
+        <label for="r1">R1 (kΩ)</label>
+        <input id="r1" name="r1" type="text" inputmode="decimal" value="{{ form.r1 }}">
+        {% if errors.r1 %}<p class="error">{{ errors.r1 }}</p>{% endif %}
+      </div>
+      <div class="field">
+        <label for="r2">R2 (kΩ)</label>
+        <input id="r2" name="r2" type="text" inputmode="decimal" value="{{ form.r2 }}">
+        {% if errors.r2 %}<p class="error">{{ errors.r2 }}</p>{% endif %}
+      </div>
+      <div class="field">
+        <label for="rc">RC (kΩ)</label>
+        <input id="rc" name="rc" type="text" inputmode="decimal" value="{{ form.rc }}">
+        {% if errors.rc %}<p class="error">{{ errors.rc }}</p>{% endif %}
+      </div>
+      <div class="field">
+        <label for="re">RE (kΩ)</label>
+        <input id="re" name="re" type="text" inputmode="decimal" value="{{ form.re }}">
+        {% if errors.re %}<p class="error">{{ errors.re }}</p>{% endif %}
+      </div>
+      <div class="field">
+        <label for="vbe">VBE (V)</label>
+        <input id="vbe" name="vbe" type="text" inputmode="decimal" value="{{ form.vbe }}">
+        {% if errors.vbe %}<p class="error">{{ errors.vbe }}</p>{% endif %}
+      </div>
+    </div>
+
+    <button class="primary" type="submit">Calculate DC Bias</button>
+  </form>
+
+  {% if results %}
+  <section class="card results">
+    <p class="region-line">
+      <span class="badge badge-{{ region_key }}">{{ region }}</span>
+    </p>
+
+    <div class="result-grid">
+      <div class="result"><span class="result-label">VB</span><span class="result-value">{{ results.vb }}</span></div>
+      <div class="result"><span class="result-label">VE</span><span class="result-value">{{ results.ve }}</span></div>
+      <div class="result"><span class="result-label">VC</span><span class="result-value">{{ results.vc }}</span></div>
+      <div class="result"><span class="result-label">VCE</span><span class="result-value">{{ results.vce }}</span></div>
+      <div class="result"><span class="result-label">IC</span><span class="result-value">{{ results.ic }}</span></div>
+    </div>
+
+    <h2>ขั้นตอนการคำนวณ</h2>
+    <table class="steps">
+      <thead>
+        <tr><th>ปริมาณ</th><th>สมการ</th><th>ค่า</th></tr>
+      </thead>
+      <tbody>
+        {% for name, formula, value in steps %}
+        <tr><td>{{ name }}</td><td>{{ formula }}</td><td>{{ value }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% for warning in warnings %}
+    <p class="warning">{{ warning }}</p>
+    {% endfor %}
+
+    <p class="note">แบบจำลอง Forward-Active: β และ VBE คงที่ · เกณฑ์เตือน Saturation ที่ VCE ≤ 0.3 V</p>
+  </section>
+  {% endif %}
+</main>
+</body>
+</html>

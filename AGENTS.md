@@ -4,10 +4,24 @@
 
 - สมการทางวิศวกรรมทั้งหมดอยู่ใน `dc_bias.py` เท่านั้น
 - `dc_bias.py` ต้องไม่ import `flask` และไม่รู้จัก HTML/HTTP
-- `app.py` ทำหน้าที่รับ request, เรียก `validate()`/`calculate()` และประกอบข้อมูลให้เทมเพลต
+- สมการแยกเป็นฟังก์ชันต่อโหมด: `calculate()` (divider), `calculate_fixed()`, `calculate_emitter()`
+  ทุกตัวคืน `BiasResult` ร่วมกัน
+- `app.py` เลือกฟังก์ชันด้วย `if/elif` ตามโหมดที่ผู้ใช้เลือก ห้ามเดาโหมด
+- `app.py` ทำหน้าที่รับ request, เรียก `validate(form, mode)` แล้วเรียกฟังก์ชันของโหมดนั้น
+  และประกอบข้อมูลให้เทมเพลต
+- `validate(form, mode)` ตรวจเฉพาะช่องที่โหมดนั้นใช้ ค่าที่ส่งมาเกินมาให้เพิกเฉย
+- โหมดที่ไม่รู้จัก (`mode` ไม่อยู่ใน `MODES`) ต้องตอบ error ห้ามถอยไปใช้ Divider
 - `formatting.py` ดูแลรูปแบบตัวเลขและหน่วยเท่านั้น ไม่คำนวณฟิสิกส์
 - `templates/index.html` แสดงผลเท่านั้น **ห้ามคำนวณและห้ามใส่เลขผลลัพธ์ตายตัว**
 - ห้ามใช้ JavaScript ฝั่ง client ในเวอร์ชันนี้
+
+## การตัดสิน Region
+
+- `IB <= 0` → Cutoff พร้อม warning
+- `VCE <= 0.2 V` → Saturation warning (เกณฑ์ของ Lab 03 เดิม 0.3 V)
+- อื่น ๆ → Active
+- warning ไม่ใช่การแก้สมการใหม่: ห้ามแก้สมการ Cutoff/Saturation ในโมเดลนี้
+
 
 ## การทดสอบ
 

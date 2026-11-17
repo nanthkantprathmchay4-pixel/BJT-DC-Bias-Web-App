@@ -212,3 +212,31 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.modes a {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--blue);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.modes a:hover {
+  border-color: #8fc2e0;
+}
+
+.modes a[aria-current="page"] {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}

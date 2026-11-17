@@ -10,53 +10,40 @@
 <main class="page">
   <header class="page-header">
     <h1>BJT DC Bias Calculator</h1>
-    <p class="subtitle">Common-Emitter · Voltage Divider Bias</p>
+    <p class="subtitle">Common-Emitter · Fixed · Emitter · Voltage Divider</p>
   </header>
 
+  <nav class="modes">
+    {% for key, label in mode_options %}
+    <a href="{{ url_for('index', mode=key) }}"{% if key == mode %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if mode_error %}
+  <p class="warning">{{ mode_error }}</p>
+  {% endif %}
+
+  {% if fields %}
   <form class="card" method="post" action="/">
+    <input type="hidden" name="mode" value="{{ mode }}">
     <div class="field-grid">
+      {% for f in fields %}
       <div class="field">
-        <label for="vcc">VCC (V)</label>
-        <input id="vcc" name="vcc" type="text" inputmode="decimal" value="{{ form.vcc }}">
-        {% if errors.vcc %}<p class="error">{{ errors.vcc }}</p>{% endif %}
+        <label for="{{ f.name }}">{{ f.label }}</label>
+        <input id="{{ f.name }}" name="{{ f.name }}" type="text" inputmode="decimal" value="{{ f.value }}">
+        {% if f.error %}<p class="error">{{ f.error }}</p>{% endif %}
       </div>
-      <div class="field">
-        <label for="beta">β</label>
-        <input id="beta" name="beta" type="text" inputmode="decimal" value="{{ form.beta }}">
-        {% if errors.beta %}<p class="error">{{ errors.beta }}</p>{% endif %}
-      </div>
-      <div class="field">
-        <label for="r1">R1 (kΩ)</label>
-        <input id="r1" name="r1" type="text" inputmode="decimal" value="{{ form.r1 }}">
-        {% if errors.r1 %}<p class="error">{{ errors.r1 }}</p>{% endif %}
-      </div>
-      <div class="field">
-        <label for="r2">R2 (kΩ)</label>
-        <input id="r2" name="r2" type="text" inputmode="decimal" value="{{ form.r2 }}">
-        {% if errors.r2 %}<p class="error">{{ errors.r2 }}</p>{% endif %}
-      </div>
-      <div class="field">
-        <label for="rc">RC (kΩ)</label>
-        <input id="rc" name="rc" type="text" inputmode="decimal" value="{{ form.rc }}">
-        {% if errors.rc %}<p class="error">{{ errors.rc }}</p>{% endif %}
-      </div>
-      <div class="field">
-        <label for="re">RE (kΩ)</label>
-        <input id="re" name="re" type="text" inputmode="decimal" value="{{ form.re }}">
-        {% if errors.re %}<p class="error">{{ errors.re }}</p>{% endif %}
-      </div>
-      <div class="field">
-        <label for="vbe">VBE (V)</label>
-        <input id="vbe" name="vbe" type="text" inputmode="decimal" value="{{ form.vbe }}">
-        {% if errors.vbe %}<p class="error">{{ errors.vbe }}</p>{% endif %}
-      </div>
+      {% endfor %}
     </div>
 
     <button class="primary" type="submit">Calculate DC Bias</button>
   </form>
+  {% endif %}
 
   {% if results %}
   <section class="card results">
+    <h2>ผลลัพธ์ · {{ mode_label }}</h2>
+
     <p class="region-line">
       <span class="badge badge-{{ region_key }}">{{ region }}</span>
     </p>
@@ -85,7 +72,7 @@
     <p class="warning">{{ warning }}</p>
     {% endfor %}
 
-    <p class="note">แบบจำลอง Forward-Active: β และ VBE คงที่ · เกณฑ์เตือน Saturation ที่ VCE ≤ 0.3 V</p>
+    <p class="note">แบบจำลอง Forward-Active: β และ VBE คงที่ · เกณฑ์เตือน Saturation ที่ VCE ≤ 0.2 V</p>
   </section>
   {% endif %}
 </main>

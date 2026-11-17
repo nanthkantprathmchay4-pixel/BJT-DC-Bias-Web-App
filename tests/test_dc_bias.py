@@ -44,6 +44,15 @@ class RegionTest(unittest.TestCase):
         self.assertAlmostEqual(r.vc, 12.0, delta=1e-9)
         self.assertTrue(r.warnings)
 
+    def test_vce_between_0_2_and_0_3_is_active_under_lab03_limit(self):
+        p = BiasInput(
+            vcc=12, r1=100_000, r2=22_000, rc=8_540, re=1_000, beta=100, vbe=0.7
+        )
+        r = calculate(p)
+        self.assertAlmostEqual(r.vce, 0.254855, delta=1e-5)
+        self.assertEqual(r.region, "active")
+        self.assertEqual(r.warnings, [])
+
     def test_saturation_when_vce_low(self):
         p = BiasInput(
             vcc=12, r1=100_000, r2=22_000, rc=8_700, re=1_000, beta=100, vbe=0.7

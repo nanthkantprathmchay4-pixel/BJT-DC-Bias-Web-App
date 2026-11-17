@@ -9,10 +9,17 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-SATURATION_VCE_LIMIT = 0.3
+SATURATION_VCE_LIMIT = 0.2
 
-FIELDS = ("vcc", "r1", "r2", "rc", "re", "beta", "vbe")
-RESISTOR_FIELDS = ("r1", "r2", "rc", "re")
+MODES = ("divider", "fixed", "emitter")
+
+MODE_FIELDS = {
+    "divider": ("vcc", "beta", "r1", "r2", "rc", "re", "vbe"),
+    "fixed": ("vcc", "beta", "rb", "rc", "vbe"),
+    "emitter": ("vcc", "beta", "rb", "rc", "re", "vbe"),
+}
+
+RESISTOR_FIELDS = ("r1", "r2", "rc", "re", "rb")
 
 KILO = 1_000.0
 
@@ -24,9 +31,11 @@ RESISTANCE_MESSAGE = "ความต้านทานต้องมากก�
 BETA_MESSAGE = "β ต้องมากกว่า 0"
 VBE_MESSAGE = "VBE ต้องอยู่ระหว่าง 0 ถึง VCC"
 
+UNKNOWN_MODE_MESSAGE = "ไม่รู้จักโหมดวงจรที่เลือก"
+
 CUTOFF_WARNING = "วงจรอยู่ในช่วง Cutoff — แบบจำลอง Forward-Active ใช้ไม่ได้"
 SATURATION_WARNING = (
-    "VCE ต่ำกว่า 0.3 V — ใกล้หรือเข้าสู่ Saturation ค่าที่ได้ไม่น่าเชื่อถือ"
+    "VCE ต่ำกว่า 0.2 V — ใกล้หรือเข้าสู่ Saturation ค่าที่ได้ไม่น่าเชื่อถือ"
 )
 
 
@@ -42,9 +51,26 @@ class BiasInput:
 
 
 @dataclass(frozen=True)
+class FixedBiasInput:
+    vcc: float
+    rb: float
+    rc: float
+    beta: float
+    vbe: float
+
+
+@dataclass(frozen=True)
+class EmitterBiasInput:
+    vcc: float
+    rb: float
+    rc: float
+    re: float
+    beta: float
+    vbe: float
+
+
+@dataclass(frozen=True)
 class BiasResult:
-    vth: float
-    rth: float
     ib: float
     ic: float
     ie: float
@@ -54,6 +80,8 @@ class BiasResult:
     vce: float
     region: str
     warnings: list[str]
+    vth: float | None = None
+    rth: float | None = None
 
 
 def calculate(p: BiasInput) -> BiasResult:
@@ -113,16 +141,93 @@ def calculate(p: BiasInput) -> BiasResult:
     )
 
 
-def validate(form: Mapping[str, str]) -> tuple[BiasInput | None, dict[str, str]]:
-    """Parse and check raw form values, converting kΩ inputs to ohms.
+def _classify(ib: float, vce: float) -> tuple[str, list[str]]:
+    if ib <= 0:
+        return "cutoff", [CUTOFF_WARNING]
+    if vce <= SATURATION_VCE_LIMIT:
+        return "saturation", [SATURATION_WARNING]
+    return "active", []
 
-    Returns the parsed BiasInput and an empty error dict when everything is
-    valid, or None and a per-field error dict otherwise.
+
+def calculate_fixed(p: FixedBiasInput) -> BiasResult:
+    """Fixed bias: base resistor from VCC to base, emitter grounded."""
+    ib = (p.vcc - p.vbe) / p.rb
+    ic = p.beta * ib
+    ie = (p.beta + 1) * ib
+    ve = 0.0
+    vb = ve + p.vbe
+    vc = p.vcc - ic * p.rc
+    vce = vc - ve
+    region, warnings = _classify(ib, vce)
+
+    return BiasResult(
+        ib=ib,
+        ic=ic,
+        ie=ie,
+        vb=vb,
+        ve=ve,
+        vc=vc,
+        vce=vce,
+        region=region,
+        warnings=warnings,
+    )
+
+
+def calculate_emitter(p: EmitterBiasInput) -> BiasResult:
+    """Emitter bias: base resistor from VCC to base plus an emitter resistor."""
+    ib = (p.vcc - p.vbe) / (p.rb + (p.beta + 1) * p.re)
+    ic = p.beta * ib
+    ie = (p.beta + 1) * ib
+    ve = ie * p.re
+    vb = ve + p.vbe
+    vc = p.vcc - ic * p.rc
+    vce = vc - ve
+    region, warnings = _classify(ib, vce)
+
+    return BiasResult(
+        ib=ib,
+        ic=ic,
+        ie=ie,
+        vb=vb,
+        ve=ve,
+        vc=vc,
+        vce=vce,
+        region=region,
+        warnings=warnings,
+    )
+
+
+def parse_mode(raw: str | None) -> str | None:
+    """Map a raw form/query value to a bias mode.
+
+    A missing or empty value means the original voltage-divider mode, so
+    callers from Lab 02 keep working. Anything outside MODES is unknown:
+    None, never a guess.
     """
+    if raw is None or str(raw).strip() == "":
+        return "divider"
+    return raw if raw in MODES else None
+
+
+def validate(
+    form: Mapping[str, str], mode: str = "divider"
+) -> tuple[BiasInput | FixedBiasInput | EmitterBiasInput | None, dict[str, str]]:
+    """Parse and check raw form values for one mode, converting kΩ to ohms.
+
+    Only the fields that mode uses are read, so stray values from another
+    mode's inputs are ignored. Returns the parsed input dataclass and an empty
+    error dict when everything is valid, or None and a per-field error dict
+    otherwise.
+    """
+    if mode not in MODES:
+        return None, {"mode": UNKNOWN_MODE_MESSAGE}
+
+    fields = MODE_FIELDS[mode]
+    resistor_fields = [field for field in RESISTOR_FIELDS if field in fields]
     errors: dict[str, str] = {}
     values: dict[str, float] = {}
 
-    for field in FIELDS:
+    for field in fields:
         raw = str(form.get(field, "")).strip()
         if not raw:
             errors[field] = MISSING_MESSAGE
@@ -140,7 +245,7 @@ def validate(form: Mapping[str, str]) -> tuple[BiasInput | None, dict[str, str]]
     if "vcc" in values and values["vcc"] <= 0:
         errors["vcc"] = VCC_MESSAGE
 
-    for field in RESISTOR_FIELDS:
+    for field in resistor_fields:
         if field in values and values[field] <= 0:
             errors[field] = RESISTANCE_MESSAGE
 
@@ -156,7 +261,7 @@ def validate(form: Mapping[str, str]) -> tuple[BiasInput | None, dict[str, str]]
             errors["vbe"] = VBE_MESSAGE
 
     ohms: dict[str, float] = {}
-    for field in RESISTOR_FIELDS:
+    for field in resistor_fields:
         if field in values:
             scaled = values[field] * KILO
             if not math.isfinite(scaled):
@@ -166,6 +271,31 @@ def validate(form: Mapping[str, str]) -> tuple[BiasInput | None, dict[str, str]]
 
     if errors:
         return None, errors
+
+    if mode == "fixed":
+        return (
+            FixedBiasInput(
+                vcc=values["vcc"],
+                rb=ohms["rb"],
+                rc=ohms["rc"],
+                beta=values["beta"],
+                vbe=values["vbe"],
+            ),
+            {},
+        )
+
+    if mode == "emitter":
+        return (
+            EmitterBiasInput(
+                vcc=values["vcc"],
+                rb=ohms["rb"],
+                rc=ohms["rc"],
+                re=ohms["re"],
+                beta=values["beta"],
+                vbe=values["vbe"],
+            ),
+            {},
+        )
 
     return (
         BiasInput(

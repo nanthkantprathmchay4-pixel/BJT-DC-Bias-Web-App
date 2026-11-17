@@ -93,3 +93,105 @@ class CalculatePostTest(unittest.TestCase):
                 self.assertNotIn("inf V", body)
                 self.assertNotIn("nan µA", body)
                 self.assertNotIn("inf mA", body)
+
+class ModeWebTest(unittest.TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+
+    def test_get_fixed_shows_rb_and_hides_r1(self):
+        body = self.client.get("/?mode=fixed").get_data(as_text=True)
+        self.assertIn('name="rb"', body)
+        self.assertNotIn('name="r1"', body)
+        self.assertNotIn('name="re"', body)
+
+    def test_get_emitter_shows_re(self):
+        body = self.client.get("/?mode=emitter").get_data(as_text=True)
+        self.assertIn('name="rb"', body)
+        self.assertIn('name="re"', body)
+        self.assertNotIn('name="r1"', body)
+
+    def test_post_fixed_shows_a2_values(self):
+        body = self.client.post(
+            "/",
+            data={
+                "mode": "fixed",
+                "vcc": "12",
+                "beta": "100",
+                "rb": "1000",
+                "rc": "2.2",
+                "vbe": "0.7",
+            },
+        ).get_data(as_text=True)
+        self.assertIn("1.130 mA", body)
+        self.assertIn("9.514 V", body)
+        self.assertIn("Fixed Bias", body)
+
+    def test_post_emitter_shows_a3_values(self):
+        body = self.client.post(
+            "/",
+            data={
+                "mode": "emitter",
+                "vcc": "12",
+                "beta": "100",
+                "rb": "1000",
+                "rc": "2.2",
+                "re": "1",
+                "vbe": "0.7",
+            },
+        ).get_data(as_text=True)
+        self.assertIn("1.026 mA", body)
+        self.assertIn("8.705 V", body)
+
+    def test_post_emitter_re_2k_changes_result(self):
+        body = self.client.post(
+            "/",
+            data={
+                "mode": "emitter",
+                "vcc": "12",
+                "beta": "100",
+                "rb": "1000",
+                "rc": "2.2",
+                "re": "2",
+                "vbe": "0.7",
+            },
+        ).get_data(as_text=True)
+        self.assertIn("940.100 µA", body)
+        self.assertIn("8.033 V", body)
+
+    def test_post_fixed_rb_zero_shows_error_and_hides_results(self):
+        body = self.client.post(
+            "/",
+            data={
+                "mode": "fixed",
+                "vcc": "12",
+                "beta": "100",
+                "rb": "0",
+                "rc": "2.2",
+                "vbe": "0.7",
+            },
+        ).get_data(as_text=True)
+        self.assertIn("ความต้านทานต้องมากกว่า 0", body)
+        self.assertNotIn("ขั้นตอนการคำนวณ", body)
+
+    def test_post_unknown_mode_shows_error(self):
+        body = self.client.post("/", data={"mode": "xyz"}).get_data(as_text=True)
+        self.assertIn("ไม่รู้จักโหมดวงจรที่เลือก", body)
+        self.assertNotIn("ขั้นตอนการคำนวณ", body)
+
+    def test_get_unknown_mode_shows_error(self):
+        body = self.client.get("/?mode=xyz").get_data(as_text=True)
+        self.assertIn("ไม่รู้จักโหมดวงจรที่เลือก", body)
+
+    def test_results_note_states_lab03_saturation_limit(self):
+        body = self.client.post(
+            "/",
+            data={
+                "mode": "fixed",
+                "vcc": "12",
+                "beta": "100",
+                "rb": "1000",
+                "rc": "2.2",
+                "vbe": "0.7",
+            },
+        ).get_data(as_text=True)
+        self.assertIn("VCE ≤ 0.2 V", body)

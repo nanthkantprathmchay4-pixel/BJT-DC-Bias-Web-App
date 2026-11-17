@@ -1,6 +1,6 @@
 import unittest
 
-from dc_bias import validate
+from dc_bias import BiasInput, parse_mode, validate
 
 VALID = {
     "vcc": "12",
@@ -97,3 +97,56 @@ class NonFiniteInputTest(unittest.TestCase):
         bias_input, errors = validate({**VALID, "rc": "1e308"})
         self.assertIsNone(bias_input)
         self.assertIn("rc", errors)
+
+
+class ModeValidationTest(unittest.TestCase):
+    FIXED = {
+        "mode": "fixed",
+        "vcc": "12",
+        "beta": "100",
+        "rb": "1000",
+        "rc": "2.2",
+        "vbe": "0.7",
+    }
+
+    def test_missing_mode_defaults_to_divider(self):
+        bias_input, errors = validate(VALID)
+        self.assertEqual(errors, {})
+        self.assertIsInstance(bias_input, BiasInput)
+
+    def test_fixed_converts_rb_to_ohms(self):
+        bias_input, errors = validate(self.FIXED, "fixed")
+        self.assertEqual(errors, {})
+        self.assertEqual(bias_input.rb, 1_000_000.0)
+
+    def test_fixed_ignores_divider_fields(self):
+        form = {**self.FIXED, "r1": "abc", "r2": "0", "re": ""}
+        bias_input, errors = validate(form, "fixed")
+        self.assertEqual(errors, {})
+
+    def test_fixed_requires_rb(self):
+        form = dict(self.FIXED)
+        del form["rb"]
+        bias_input, errors = validate(form, "fixed")
+        self.assertIsNone(bias_input)
+        self.assertEqual(errors["rb"], "กรุณากรอกค่านี้")
+
+    def test_fixed_zero_rb_is_rejected(self):
+        _, errors = validate({**self.FIXED, "rb": "0"}, "fixed")
+        self.assertEqual(errors["rb"], "ความต้านทานต้องมากกว่า 0")
+
+    def test_emitter_requires_re(self):
+        form = {**self.FIXED, "mode": "emitter"}
+        _, errors = validate(form, "emitter")
+        self.assertEqual(errors["re"], "กรุณากรอกค่านี้")
+
+    def test_unknown_mode_reports_error(self):
+        bias_input, errors = validate(self.FIXED, "xyz")
+        self.assertIsNone(bias_input)
+        self.assertEqual(errors, {"mode": "ไม่รู้จักโหมดวงจรที่เลือก"})
+
+    def test_parse_mode(self):
+        self.assertEqual(parse_mode(None), "divider")
+        self.assertEqual(parse_mode(""), "divider")
+        self.assertEqual(parse_mode("emitter"), "emitter")
+        self.assertIsNone(parse_mode("xyz"))

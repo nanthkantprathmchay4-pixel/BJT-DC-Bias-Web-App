@@ -17,6 +17,7 @@
     {% for key, label in mode_options %}
     <a href="{{ url_for('index', mode=key) }}"{% if key == mode %} aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}
+    <a href="{{ url_for('simulator') }}">Lab 4 Simulator</a>
   </nav>
 
   {% if mode_error %}

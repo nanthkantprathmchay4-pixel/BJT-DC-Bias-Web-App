@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CE Amplifier Simulator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="page">
+  <header class="page-header">
+    <h1>CE Amplifier Simulator</h1>
+    <p class="subtitle">Lab 4 · Common-Emitter Voltage Divider · ngspice</p>
+  </header>
+
+  <nav class="modes">
+    <a href="{{ url_for('index') }}">Lab 3 DC Bias</a>
+    <a href="{{ url_for('simulator') }}" aria-current="page">Lab 4 Simulator</a>
+  </nav>
+
+  <form class="card" method="post" action="{{ url_for('simulator') }}">
+    <div class="field-grid">
+      {% for f in fields %}
+      <div class="field">
+        <label for="{{ f.name }}">{{ f.label }}</label>
+        <input id="{{ f.name }}" name="{{ f.name }}" type="text" inputmode="decimal" value="{{ f.value }}">
+        {% if f.error %}<p class="error">{{ f.error }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <div class="field">
+        <label for="analysis">Analysis</label>
+        <select id="analysis" name="analysis">
+          {% for key, label in analysis_options.items() %}
+          <option value="{{ key }}"{% if key == analysis %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <button class="primary" type="submit">Run Simulation</button>
+  </form>
+
+  {% if run_status %}
+  <section class="card results">
+    <h2>ผลการจำลอง</h2>
+    <p class="status-line">
+      <span class="badge {% if run_status == 'ok' %}badge-active status-ok{% else %}badge-saturation status-error{% endif %}">
+        {{ 'OK' if run_status == 'ok' else 'ERROR' }}
+      </span>
+      <span class="meta">Engine: {{ engine }}{% if engine_version %} {{ engine_version }}{% endif %} · Model: {{ model }} · Analysis: {{ analysis_options.get(analysis, analysis) }}</span>
+    </p>
+
+    {% if error %}
+    <p class="warning">{{ error }}</p>
+    {% endif %}
+
+    {% if log_tail %}
+    <details class="log-details">
+      <summary>ngspice log tail</summary>
+      <pre>{{ log_tail }}</pre>
+    </details>
+    {% endif %}
+
+    {% if run_status == 'ok' and spice and reference %}
+    <h2>DC Operating Point (.op) — SPICE vs Analytical Reference</h2>
+    <table class="steps">
+      <thead>
+        <tr><th>ปริมาณ</th><th>SPICE (ngspice)</th><th>Analytical Reference (divider formula)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>VB</td><td>{{ spice.vb }}</td><td>{{ reference.vb }}</td></tr>
+        <tr><td>VE</td><td>{{ spice.ve }}</td><td>{{ reference.ve }}</td></tr>
+        <tr><td>VC</td><td>{{ spice.vc }}</td><td>{{ reference.vc }}</td></tr>
+        <tr><td>VCE</td><td>{{ spice.vce }}</td><td>{{ reference.vce }}</td></tr>
+        <tr><td>IC</td><td>{{ spice.ic }}</td><td>{{ reference.ic }}</td></tr>
+        <tr><td>Region</td><td>—</td><td>{{ reference.region }}</td></tr>
+      </tbody>
+    </table>
+    <p class="note">SPICE ค่าจาก ngspice .op (model {{ model }}). Analytical reference คำนวณจากสูตร divider เดียวกันเพื่อเปรียบเทียบ ไม่ใช่ค่าเดียวกันโดยนิยาม.</p>
+    {% endif %}
+
+    {% if run_status == 'ok' and plot_svg %}
+    <h2>Plot</h2>
+    <div class="plot-wrap">{{ plot_svg | safe }}</div>
+    {% endif %}
+  </section>
+  {% endif %}
+</main>
+</body>
+</html>

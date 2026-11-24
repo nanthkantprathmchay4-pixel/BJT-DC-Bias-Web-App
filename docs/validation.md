@@ -173,3 +173,50 @@ OK
 → `browser_type` (ถ้าปรับค่า) → `browser_click` ปุ่ม Calculate DC Bias → `browser_snapshot`
 อ่านค่าจาก snapshot ทุกครั้งหลังเปลี่ยนโหมดหรือส่งฟอร์ม (ห้ามใช้ค่าของรอบก่อนหน้า)
 
+---
+
+# Lab 04
+
+## 9. สภาพแวดล้อมและการรันจริง
+
+- วันที่ตรวจ: 2026-11-24
+- Branch: `lab4-ce-amplifier-simulator`
+- Python venv: `.venv\Scripts\python.exe`
+- Flask: `python -m flask --app app run --debug` (ตรวจ B1–B8 ที่ `http://127.0.0.1:5174`)
+- ngspice: **ngspice-47** (`ngspice_con.exe`, Compiled with KLU Direct Linear Solver)
+- ngspice path ที่ใช้จริง: `%LOCALAPPDATA%\Programs\ngspice-47\Spice64\bin\ngspice_con.exe`
+- Model: `Q2N3904 NPN` (พารามิเตอร์ตาม `spice_engine.py` / README)
+
+## 10. ผลทดสอบอัตโนมัติ (หลังเพิ่ม Lab 4)
+
+```
+$ .venv\Scripts\python.exe -m unittest discover -s tests -v
+...
+Ran 85 tests in 0.239s
+
+OK
+```
+
+เพิ่มชุดทดสอบ Lab 4: `tests/test_spice_engine.py`, `tests/test_plot_svg.py`, `tests/test_web_simulator.py` และยังคงผ่าน regression ชุด Lab 3 เดิมครบ
+
+## 11. ตารางตรวจ B1–B8 (Browser จริงผ่าน Playwright)
+
+หมายเหตุ: ค่า SPICE มาจาก ngspice .op/.ac/.tran จริงของวงจร CE Voltage Divider reference; ค่า Analytical reference ใน `.op` คำนวณจากสูตร divider เดียวกันเพื่อเปรียบเทียบ (คนละ provenance)
+
+| ID | กรณี | คาดหมาย/เกณฑ์ | เห็นจริง (จาก browser) | วิธีตรวจ | สถานะ | หลักฐาน |
+|---|---|---|---|---|---|---|
+| B1 | Regression A1-equivalent (Lab 3 divider) | ค่า A1 เดิม: Active, VB 1.942 V, VE 1.242 V, VC 9.294 V, VCE 8.052 V, IC 1.230 mA | Active Region, VB 1.942 V, VE 1.242 V, VC 9.294 V, VCE 8.052 V, IC 1.230 mA | Playwright เปิด `/?mode=divider`, กรอกค่า A1, กด Calculate | PASS | `docs/evidence/lab4/b1-divider.png` |
+| B2 | DC SPICE `.op` (default) | status OK, แสดงค่า SPICE และ Analytical reference แยกคอลัมน์ | status OK. SPICE: VB 2.004 V, VE 1.333 V, VC 9.087 V, VCE 7.754 V, IC 1.324 mA. Reference: VB 1.942 V, VE 1.242 V, VC 9.294 V, VCE 8.052 V, IC 1.230 mA, Active Region | Playwright เปิด `/simulator`, analysis=op, Run Simulation | PASS | `docs/evidence/lab4/b2-op.png` |
+| B3 | เปลี่ยน RE 1kΩ → 2kΩ (`.op`) | ค่าต้องเปลี่ยนจาก B2; IC ควรลดลงเมื่อ RE เพิ่ม (ในย่านนี้) | status OK. SPICE: VB 2.073 V, VE 1.419 V, VC 10.450 V, VCE 9.032 V, IC 704.369 µA. Reference: VB 2.044 V, VE 1.344 V, VC 10.536 V, VCE 9.192 V, IC 665.326 µA. IC ลดลงจาก B2 | Playwright เปลี่ยน RE=2, Run Simulation | PASS | `docs/evidence/lab4/b3-re-change.png` |
+| B4 | AC `.ac` (default) | status OK, มีกราฟ Bode SVG | status OK, hasSvg=1 (กราฟ Bode magnitude/phase แสดงบนหน้า) | Playwright เลือก AC, Run Simulation | PASS | `docs/evidence/lab4/b4-ac.png` |
+| B5 | Transient `.tran` 10mV peak, 1kHz | status OK, มีกราฟ transient SVG | status OK, hasSvg=1, Vin=10 mV peak, Freq=1000 Hz | Playwright เลือก Tran, vin_mvp=10, freq_hz=1000, Run Simulation | PASS | `docs/evidence/lab4/b5-tran.png` |
+| B6 | Source change (Tran 20mV peak, 2kHz) | ผลกราฟ/การรันต้องเปลี่ยนตาม input ใหม่; status OK | status OK, hasSvg=1, vin=20, freq=2000 (ค่าฟอร์มเปลี่ยนและรันใหม่สำเร็จ) | Playwright เปลี่ยน vin_mvp=20, freq_hz=2000, Run Simulation | PASS | `docs/evidence/lab4/b6-source-change.png` |
+| B7 | Invalid/fail | input ไม่ถูกต้องต้องแสดง error ชัดเจน และไม่มีสถานะสำเร็จค้าง | RE=0 แสดงข้อความ `ความต้านทานต้องมากกว่า 0`, status ERROR, `status-ok` count = 0 | Playwright ตั้ง RE=0, Run Simulation | PASS | `docs/evidence/lab4/b7-invalid.png` |
+| B8 | Desktop + 390px UI | ที่ 390px หน้า simulator ใช้งานได้, ไม่มี horizontal scroll หลัก | viewport 390x844, hasHScroll=false, รัน op สำเร็จและแสดงตารางผลลัพธ์ | Playwright resize 390x844, เปิด `/simulator`, Run Simulation | PASS | `docs/evidence/lab4/b8-mobile.png` |
+
+## 12. หมายเหตุ Lab 4
+
+- ค่า SPICE และ Analytical reference ใน B2/B3 ใกล้เคียงแต่ไม่เท่ากัน เพราะ SPICE ใช้โมเดล 2N3904 แบบไม่เชิงเส้น ส่วน reference ใช้สมการ divider ideal (β, VBE คงที่) — UI แสดง provenance แยกคอลัมน์
+- กรณี error/invalid ต้องไม่แสดงกราฟหรือสถานะสำเร็จค้าง (ยืนยันโดย B7 และ unit tests `test_web_simulator.py`, `test_spice_engine.py`)
+- Lab 4 ไม่ได้เพิ่ม CE bypass capacitor และไม่ขยาย topology นอกเหนือ CE Voltage Divider reference
+

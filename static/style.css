@@ -240,3 +240,73 @@ body {
   border-color: var(--navy);
   color: #fff;
 }
+
+.field select {
+  width: 100%;
+  padding: 9px 11px;
+  font: inherit;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfdff;
+}
+
+.field select:focus {
+  outline: 2px solid #8fc2e0;
+  outline-offset: 1px;
+}
+
+.status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.status-error {
+  background: #fdece4;
+  color: var(--orange);
+}
+
+.log-details {
+  margin-top: 12px;
+}
+
+.log-details summary {
+  cursor: pointer;
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.log-details pre {
+  margin: 8px 0 0;
+  padding: 12px;
+  background: #f4f8fc;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.plot-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.plot-wrap svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
